@@ -3033,14 +3033,18 @@ def ddl_downloader(queue):
                         nval = {'status':  'Failed',
                                 'updated_date': datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}
                         myDB.upsert('ddl_info', nval, ctrlval)
-                        #undo all snatched items, to previous status via item['id'] - this will be set to Skipped currently regardless of previous status
+                        # undo pack snatches, then mark individual issue as Failed for auto-search retry
                         reverse_the_pack_snatch(item['id'], item['comicid'])
+                        mylar.search.FailedMark(item['issueid'], item['comicid'], item['id'], ddzstat['filename'], item['link_type'])
                         link_type_failure.pop(item['id'])
                         ddl_cleanup(item['id'])
+                        mylar.DDL_QUEUED.remove(item['id'])
                 else:
                     logger.info('[Status: %s] Failed to download item from %s : %s ' % (ddzstat['success'], item['site'], ddzstat))
                     myDB.action('DELETE FROM ddl_info where id=?', [item['id']])
                     mylar.search.FailedMark(item['issueid'], item['comicid'], item['id'], ddzstat['filename'], item['site'])
+                    ddl_cleanup(item['id'])
+                    mylar.DDL_QUEUED.remove(item['id'])
         else:
             time.sleep(5)
 
